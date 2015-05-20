@@ -1,4 +1,4 @@
-# Makefile for Hello
+# Makefile for zex
 
 
 hello: bin zex.o serv.o hello.o
