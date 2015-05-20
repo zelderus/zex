@@ -7,14 +7,14 @@ hello: bin zex.o serv.o hello.o
 bin: 
 	mkdir bin
 
-zex.o: zex.c
-	gcc -c zex.c -o bin/zex.o
+zex.o: src/zex.c
+	gcc -c src/zex.c -o bin/zex.o
 
-serv.o: serv.c
-	gcc -c serv.c -o bin/serv.o
+serv.o: src/serv.c
+	gcc -c src/serv.c -o bin/serv.o
 
-hello.o: hello.c
-	gcc -c hello.c	-o bin/hello.o
+hello.o: src/hello.c
+	gcc -c src/hello.c	-o bin/hello.o
 
 clear: 
 	rm -f bin/*.o bin/hello
