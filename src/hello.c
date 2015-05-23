@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <stdlib.h>
 
 
 void p (const char* str)
@@ -22,6 +23,33 @@ void pd (const int num)
 void p_ver (const char* ver)
 {
 	printf("version: %s\n", ver);
+}
+
+
+void zex_strcat(char* dest, char* src)
+{
+	strcat(dest, src);
+	return;
+
+	size_t len1 = strlen(dest);
+	size_t len2 = strlen(src);
+
+	//p("========");
+	//pd(len1);
+
+	char*s = malloc(len1 + len2 + 1);
+	
+	memcpy(s, dest, len1);
+	memcpy(s + len1, src, len2 + 1);
+
+	//dest = malloc(strlen(s));
+	dest = s;
+	//len1 = strlen(dest);
+	//pd(len1);
+	//p(dest);
+
+//p(dest);
+//p("--------");
 }
 
 

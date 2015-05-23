@@ -7,6 +7,7 @@ int main (void)
 	p(" started");
 	//p_ver(ZEX_VER);
 
+	// TODO: reaction on Signals to terminate
 	
 	int zs = zex_serv();
 	if (zs > 0)

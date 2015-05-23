@@ -3,10 +3,21 @@
 #define ZEX_RET_FRMCLIENT 	-3
 
 //struct zex_response_t;
-/*
+
 struct zex_response_t
 {
 	int num;
-	//const char* str;
-	int str_size;
-};*/
+	char* str;
+	int size;
+};
+
+struct zex_serv_params
+{
+	char* url;
+	// ..
+
+};
+
+
+
+

@@ -1,10 +1,15 @@
 #include "serv.h"
 #include "responser.h"
+#include "zex_types.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 int zex_port = 3542;
 char zex_addr[] = "127.0.0.1";
@@ -79,19 +84,28 @@ int zex_serv_child(int sock)
 	if (n <= 0) { p("serv_child err: recv"); return 1; };		
 	p("serv_child: recivied");
 	
-	// TODO: parse request from buf
-	// TODO: reaction on Signals to terminate
-
-	
-	//char resp_content[] = "\n\n<div>reeeesp</div>";
-	//int resp_size = sizeof(resp_content);
-	char response[] = "HTTP/1.0 200 OK\nServer: zex\nContent-Type: text/html;charset=utf-8\nStatus: 200 OK\nConnection: close\n\n<!DOCTYPE html><html><div>reeeesp</div></html>\r\r";
-
-
+	// params
+	struct zex_serv_params params = zex_serv_getparams(buf);
+	// create response
+	struct zex_response_t zr = resp_get_response(params);
 	// response
-	send(sock, response, sizeof(response), 0);
-	p("serv_child: sended");	
+	send(sock, zr.str, zr.size, 0);
 
-	close(sock);	//! !!!!!!!!!!!!!!!!! <---------------------
+	p("serv_child: sended");	
+	close(sock);	//!
 	return 0;
 }
+
+// parse request
+struct zex_serv_params zex_serv_getparams(const char* buf)
+{
+	struct zex_serv_params params;
+	// TODO: parse request from buf
+	
+
+
+	return params;
+}
+
+
+
