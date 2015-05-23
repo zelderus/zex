@@ -11,10 +11,20 @@ void p (const char* str)
 {
 	printf("%s\n", str);
 }
+void pl (const char* str)
+{
+	printf("%s", str);
+}
+void pd (const int num)
+{
+	printf("%d\n", num);
+}
 void p_ver (const char* ver)
 {
 	printf("version: %s\n", ver);
 }
+
+
 
 
 

@@ -2,19 +2,27 @@
 
 int main (void)
 {
-	p("zex started");
-	p_ver(ZEX_VER);
+	pl("zex/");
+	pl(ZEX_VER);
+	p(" started");
+	//p_ver(ZEX_VER);
 
 	
 	int zs = zex_serv();
-	if (zs < 0)
+	if (zs > 0)
 	{
-		p("serv: err");
+		p("zex: err");
 		return 1;
 	}
+	else if (zs == ZEX_RET_FRMCLIENT)	/* client proccess end */
+	{
+		
+		return 0;
+	}
+	else
+	{
+		p("zex end");
+	}
 
-
-
-	p("zex end");
 	return 0;
 }
