@@ -1,28 +1,28 @@
 # Makefile for zex
 
 
-hello: bin zex_types.o zex.o responser.o serv.o hello.o
-	gcc -o bin/zex bin/zex.o bin/zex_types.o bin/responser.o bin/serv.o bin/hello.o
+hello: bin types.o zex.o responser.o serv.o help.o
+	g++ -o bin/zex bin/zex.o bin/types.o bin/responser.o bin/serv.o bin/help.o
 
 bin: 
 	mkdir bin
 
-zex.o: src/zex.c
-	gcc -c src/zex.c -o bin/zex.o
+zex.o: src/zex.cpp
+	g++ -c src/zex.cpp -o bin/zex.o -lstdc++
 
 
-zex_types.o: src/zex_types.c
-	gcc -c src/zex_types.c -o bin/zex_types.o
+types.o: src/types.cpp
+	g++ -c src/types.cpp -o bin/types.o
 
-responser.o: src/responser.c
-	gcc -c src/responser.c -o bin/responser.o
+responser.o: src/responser.cpp
+	g++ -c src/responser.cpp -o bin/responser.o
 
 
-serv.o: src/serv.c
-	gcc -c src/serv.c -o bin/serv.o
+serv.o: src/serv.cpp
+	g++ -c src/serv.cpp -o bin/serv.o
 
-hello.o: src/hello.c
-	gcc -c src/hello.c	-o bin/hello.o
+help.o: src/help.cpp
+	g++ -c src/help.cpp	-o bin/help.o
 
 
 

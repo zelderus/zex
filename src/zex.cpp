@@ -1,14 +1,17 @@
 #include "zex.h"
+#include <iostream>
 
-int main (void)
+using namespace std;
+using namespace zex;
+
+int main()
 {
-	pl("zex/");
+    pl("zex/");
 	pl(ZEX_VER);
 	p(" started");
-	//p_ver(ZEX_VER);
 
 	// TODO: reaction on Signals to terminate
-	
+
 	int zs = zex_serv();
 	if (zs > 0)
 	{
@@ -17,7 +20,7 @@ int main (void)
 	}
 	else if (zs == ZEX_RET_FRMCLIENT)	/* client proccess end */
 	{
-		
+
 		return 0;
 	}
 	else
