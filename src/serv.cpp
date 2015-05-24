@@ -95,7 +95,8 @@ namespace zex
         // params
         struct zex_serv_params params = zex_serv_getparams(buf);
         // create response
-        struct zex_response_t zr = resp_get_response(params);
+		std::string resp_out = "";	//- save scope
+        struct zex_response_t zr = resp_get_response(resp_out, params);
         // response
         send(sock, zr.str, zr.size, 0);
 
