@@ -1,7 +1,7 @@
+//#include "types.h"
+#include "help.h"
 #include "serv.h"
 #include "responser.h"
-#include "types.h"
-#include "help.h"
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -62,7 +62,9 @@ namespace zex
             if (sock < 0) { p("serv err: accept"); return 3; }
             //p("serv: accept success");
 
-            //+ proccess
+			//+ proccess
+			//- способ с новым процессом
+			//- альтернатива этому: применение select
             pid = fork();
             if (pid < 0) { p("serv err: fork"); return 4; }
 
@@ -109,10 +111,17 @@ namespace zex
     struct zex_serv_params zex_serv_getparams(const char* buf)
     {
         struct zex_serv_params params;
-        // TODO: parse request from buf
-
-
-
+        // parse request from buf
+		std::vector<RequestParams> elms = parse_http(buf);
+		// to model
+		for (unsigned i=0; i<elms.size(); i++)
+		{
+			RequestParams* pr = &elms.at(i);
+			params.params.push_back(pr);
+			p(pr->name);
+			// TODO: to model
+			// check GET.. etc
+		}
         return params;
     }
 

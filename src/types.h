@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 
 #define ZEX_VER 			"0.1"
 
@@ -7,6 +8,17 @@
 
 namespace zex
 {
+
+	class RequestParams
+	{
+		public:
+			int num;
+			std::string name;
+			std::string val;			
+
+		private:
+
+	};
 
     struct zex_response_t
     {
@@ -17,7 +29,8 @@ namespace zex
 
     struct zex_serv_params
     {
-        char* url;
+		std::vector<RequestParams*> params;
+        std::string url;
         // ..
 
     };
@@ -29,5 +42,7 @@ namespace zex
 		std::string content_type;
 	};
 
+
+	
 
 }

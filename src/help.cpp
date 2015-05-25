@@ -5,9 +5,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <locale>
 #include <errno.h>
 #include <stdlib.h>
-
+#include <sstream>
 
 
 namespace zex
@@ -17,10 +18,18 @@ namespace zex
     {
         printf("%s\n", str);
     }
+	void p(const std::string& str)
+	{
+		p(str.c_str());
+	}
     void pl (const char* str)
     {
         printf("%s", str);
     }
+	void pl(const std::string& str)
+	{
+		pl(str.c_str());
+	}
     void pd (const int num)
     {
         printf("%d\n", num);
@@ -30,6 +39,33 @@ namespace zex
         printf("version: %s\n", ver);
     }
 
+	std::string strtoupper (const std::string& str)
+	{
+		std::string out;
+		std::locale loc;
+		for (std::string::size_type i=0; i<str.length(); ++i)
+			out += std::toupper(str[i],loc);
+
+		return out;
+	}
+
+	std::vector<std::string> &split(const std::string& s, char delim, std::vector<std::string> &elems)
+	{
+		std::stringstream ss(s);
+		std::string item;
+		while (std::getline(ss, item, delim))
+		{
+			elems.push_back(item);
+		}
+		return elems; 		
+	}
+	
+	std::vector<std::string> split(const std::string &s, char delim)
+	{
+		std::vector<std::string> elems;
+		split(s, delim, elems);
+		return elems;
+	}
 
     void zex_strcat(char* dest, char* src)
     {
@@ -67,6 +103,48 @@ namespace zex
         return std::string(intStr);
     }
 
+	// разбор строки запроса
+	int parse_param(const std::string &str, RequestParams *prm)
+	{
+		// parse line (like 'get /?p1=aa http/1.0')
+		std::vector<std::string> blocks = split(str, ' ');
+		if (blocks.size() <= 1) return 0;
+		//- name
+		std::string name = blocks.at(0);
+		char ch = *name.rbegin();
+		if (ch == ':') name = name.substr(0, name.size()-1);
+		name = strtoupper(name);
+		//- val
+		std::string val = blocks.at(1);
+		//- to model
+		prm->name = name;
+		prm->val = val;
+		return 1;
+	}
+
+	// разбор запроса
+	std::vector<RequestParams> parse_http(const char* buf)
+	{
+		std::vector<RequestParams> elems;
+		std::string str = std::string(buf);
+		// lines
+		std::vector<std::string> lines;
+		//lines = split(str, '\n');
+		char delim = '\n';
+		std::stringstream ss(str);
+		std::string item;
+		while (std::getline(ss, item, delim))
+		{
+			lines.push_back(item);
+			RequestParams prm;
+			// to model
+			if (parse_param(item, &prm))
+				elems.push_back(prm);
+		}
+		return elems;
+	}
+
+	
 
 
     void write_demo(const char* str)
