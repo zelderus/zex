@@ -18,7 +18,7 @@
 namespace zex
 {
 
-
+	// TODO: to config
     int zex_port = 3542;
     char zex_addr[] = "127.0.0.1";
 
@@ -86,14 +86,13 @@ namespace zex
     // отдельный процесс. чтение запроса и ответ
     int zex_serv_child(int sock)
     {
-        int n;
-        char buf[1024];
-
+        int n, reqsize;
+		reqsize = 1024;
+        char buf[reqsize];
         // request
-        n = recv(sock, buf, 1024, 0);
+        n = recv(sock, buf, reqsize, 0);
         if (n <= 0) { p("serv_child err: recv"); return 1; };
         p("serv_child: recivied");
-
         // params
         struct zex_serv_params params = zex_serv_getparams(buf);
         // create response
@@ -101,7 +100,6 @@ namespace zex
         struct zex_response_t zr = resp_get_response(resp_out, params);
         // response
         send(sock, zr.str, zr.size, 0);
-
         p("serv_child: sended");
         close(sock);	//!
         return 0;
@@ -118,9 +116,20 @@ namespace zex
 		{
 			RequestParams* pr = &elms.at(i);
 			params.params.push_back(pr);
-			p(pr->name);
-			// TODO: to model
-			// check GET.. etc
+			// first line
+			if (pr->num == 0)
+			{
+				params.method = pr->name;
+				params.url = pr->val;
+				parse_url_query(params.url, params.queries);
+			}
+			// headers (http://en.wikipedia.org/wiki/List_of_HTTP_header_fields)
+			else if (pr->name == "COOKIE")
+			{
+				parse_request_cookie(pr->val, params.cookies);
+			}
+			// other main params..
+
 		}
         return params;
     }

@@ -30,8 +30,10 @@ namespace zex
     struct zex_serv_params
     {
 		std::vector<RequestParams*> params;
-        std::string url;
-        // ..
+		std::string url;
+		std::string method;
+		std::vector<RequestParams*> queries;
+		std::vector<RequestParams*> cookies;
 
     };
 

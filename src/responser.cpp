@@ -2,7 +2,6 @@
 #include "responser.h"
 #include "help.h"
 
-
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -19,14 +18,15 @@ namespace zex
 		struct zex_responser_head check_request ( std::string& out, const struct zex_serv_params& prms)
 		{
 			struct zex_responser_head head;
-			// TODO: check
+			// TODO: working..
 			head.success = 1;	// 1=ok, 0=error
 			head.status = "200 OK";
 			head.content_type = "text/html;charset=utf-8";
+			// TODO: set cookies, etc..
 			// content
 			if (head.success)
 			{
-				out = "<html><div>reeeesp yeaaaahhhh</div></html>";
+				out = "<html><div>reeeesp yeaaaahhhh</div><form action='/form'><input type='text' name='inp1' value='vvvvv1'/><input type='submit' value='go' /></form></html>";
 			}
 			return head;
 		}
@@ -38,6 +38,7 @@ namespace zex
 		    out += ("Server: zex/" + string(ZEX_VER) + "\n");
 		    out += ("Content-Type: " + head.content_type + "\n");
 		    out += ("Status: " + head.status + "\n");
+			// TODO: other headers from head
 		    out += ("Content-Length: " + inttostr(content_size) + "\n");
 		    out += "\n";
 		}

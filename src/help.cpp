@@ -133,18 +133,35 @@ namespace zex
 		char delim = '\n';
 		std::stringstream ss(str);
 		std::string item;
+		int linenum = 0;
 		while (std::getline(ss, item, delim))
 		{
 			lines.push_back(item);
 			RequestParams prm;
+			prm.num = linenum;
 			// to model
 			if (parse_param(item, &prm))
 				elems.push_back(prm);
+
+			linenum++;
 		}
 		return elems;
 	}
 
-	
+	// разбор url на наличие параметров
+	void parse_url_query(const std::string& url, std::vector<RequestParams*>& queries)
+	{
+		// TODO: parse url for query
+		
+	}
+
+	void parse_request_cookie(const std::string& cookiestr, std::vector<RequestParams*>& cookies)
+	{
+		// http://en.wikipedia.org/wiki/HTTP_cookie
+		// TODO: parse cookies
+		
+	}
+
 
 
     void write_demo(const char* str)
