@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <sys/wait.h>
+
 
 
 namespace zex
@@ -22,10 +25,20 @@ namespace zex
     int zex_port = 3542;
     char zex_addr[] = "127.0.0.1";
 
+
+	void
+	zex_onsignal( int signum )
+	{
+		pl("\nsignal:");
+		pd(signum);
+	}
+
+
+
     // подключение и слушение адреса. основной цикл прослушки запросов
     int zex_serv(void)
     {
-        int sock, listener;
+        int sock, listener, status;
         struct sockaddr_in addr;
         int pid;
 
@@ -56,6 +69,9 @@ namespace zex
         listen(listener, 1);
         p("---------------------------");
 
+		//signal(SIGINT, zex_onsignal);
+
+
         while(1)
         {
             sock = accept(listener, 0, 0);
@@ -78,6 +94,8 @@ namespace zex
             {
                 close(sock);
             }
+			// waiting child
+			wait(&status);
         }
 
         return 0;
