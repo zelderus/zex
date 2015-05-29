@@ -25,6 +25,8 @@ namespace zex
     int zex_port = 3542;
     char zex_addr[] = "127.0.0.1";
 
+
+	static int serv_stopped = 0; 
 	int serv_child = 0;
 	int sock = 0;
 	int listener = 0;
@@ -36,14 +38,15 @@ namespace zex
 	{
 		if (serv_child)
 		{
-			//close(sock);
+			close(sock);
 		}
 		else
 		{
 			pl("\nsignal:");
 			pd(signum);
 
-			//close(listener);
+			close(listener);
+			serv_stopped = 1;	//- flag to stop main proccess
 		}
 	}
 
@@ -53,7 +56,7 @@ namespace zex
 	{
 		pid_t kidpid;
 		int stat;
-
+		// kill all zombies
 		while ((kidpid = waitpid(-1, &stat, WNOHANG)) > 0)
 		{
 			pl("child zombie terminating ");
@@ -105,14 +108,20 @@ namespace zex
 		sa.sa_flags = 0;
 		sigaction(SIGCHLD, &sa, NULL);
 
-		//p("..sig..");
-
 
         while(1)
         {
+			if (serv_stopped) break;
+
 			errno = 0;
             sock = accept(listener, 0, 0);
-            if (sock < 0) { pl("serv err: accept -> "); p(strerror(errno)); return 3; }
+            if (sock < 0) 
+			{ 
+				pl("serv err: accept -> "); 
+				p(strerror(errno)); 
+				//return 3; // dont worry, just killed a child
+				continue;
+			}
             //p("serv: accept success");
 
 			//+ proccess
