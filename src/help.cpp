@@ -106,7 +106,9 @@ namespace zex
 	// разбор строки запроса
 	int parse_param(const std::string &str, RequestParams *prm)
 	{
-		// parse line (like 'get /?p1=aa http/1.0')
+		// по стандарту строка вида, например 'Cookie: p1=aaa'
+		// разбиваем ее, на имя (капсом) и на значение
+		// parse line
 		std::vector<std::string> blocks = split(str, ' ');
 		if (blocks.size() <= 1) return 0;
 		//- name
@@ -134,6 +136,7 @@ namespace zex
 		std::stringstream ss(str);
 		std::string item;
 		int linenum = 0;
+		// разбиваем поток текста на строки
 		while (std::getline(ss, item, delim))
 		{
 			lines.push_back(item);
@@ -149,9 +152,11 @@ namespace zex
 	}
 
 	// разбор url на наличие параметров
-	void parse_url_query(const std::string& url, std::vector<RequestParams*>& queries)
+	void parse_url_query(const std::string& url, struct zex_serv_params& prms)
 	{
-		// TODO: parse url for query
+		// TODO: parse url for query (like '/docurl?p1=aa')
+
+		//prms.queries.push
 		
 	}
 

@@ -33,6 +33,7 @@ namespace zex
 	int status = 0;
 
 
+	// пришло прерывание на выключение
 	void
 	zex_onsignal( int signum )
 	{
@@ -50,7 +51,7 @@ namespace zex
 		}
 	}
 
-
+	// дочерний прцесс завершился, обрабатывем его ответ, чтобы он уничтожился
 	void
 	zex_child_zombie( int num )
 	{
@@ -65,22 +66,23 @@ namespace zex
 	}
 
 
+	//
     // подключение и слушение адреса. основной цикл прослушки запросов
+	//
     int zex_serv(void)
     {
-        //int sock, listener, status;
         struct sockaddr_in addr;
         int pid;
 		struct sigaction sa;
 
-        //p("serv: working..");
+        // сокет для прослушки порта
         listener = socket(AF_INET, SOCK_STREAM, 0);
         if (listener < 0)
         {
             p("serv err: socket");
             return 1;
         }
-
+		// подключаемся на адрес для прослушки
         addr.sin_family = AF_INET;
         addr.sin_port = htons(zex_port);
         addr.sin_addr.s_addr = inet_addr(zex_addr);// htonl(INADDR_ANY);
@@ -100,31 +102,34 @@ namespace zex
         listen(listener, 1);
         p("---------------------------");
 		
-		//- signal interrupt
+		//- слушаем сигналы из вне (остановка приложения)
 		signal(SIGINT, zex_onsignal);
-		//- signal from child process to terminate
+		//- ждем сигнала от дочерних прцессов (чтобы обработать их и завершить)
 		sigfillset(&sa.sa_mask);
 		sa.sa_handler = zex_child_zombie;
 		sa.sa_flags = 0;
 		sigaction(SIGCHLD, &sa, NULL);
 
-
+		// вечный цикл - слушаем соединения
         while(1)
         {
-			if (serv_stopped) break;
-
+			if (serv_stopped) break;	// обаботали сигнал на остановку приложения
+			// получаем входящий запрос
 			errno = 0;
             sock = accept(listener, 0, 0);
             if (sock < 0) 
-			{ 
+			{
+				// было прерывание, завершился дочерний прцесс
+				if (errno == EINTR) /* The system call was interrupted by a signal */
+				{
+					// dont worry, just killed a child
+					continue;
+				}
 				pl("serv err: accept -> "); 
 				p(strerror(errno)); 
-				//return 3; // dont worry, just killed a child
-				continue;
+				return 3;
 			}
-            //p("serv: accept success");
-
-			//+ proccess
+			//+ создание нового процесса с полной обработкой запроса
 			//- способ с новым процессом
 			//- альтернатива этому: применение select
             pid = fork();
@@ -133,27 +138,27 @@ namespace zex
             if (pid == 0) /* client proccess  */
             {
 				serv_child = 1;
-                close(listener);
-                zex_serv_child(sock);
+                close(listener);			//- у нового процесса продублировались дескрипторы
+                zex_serv_child(sock);		//- основная функция обработки
                 return ZEX_RET_FRMCLIENT;	//- exit in client proccess
             }
             else
             {
                 close(sock);
             }
-			
         }
-
         return 0;
     }
 
+	//
     // отдельный процесс. чтение запроса и ответ
+	//
     int zex_serv_child(int sock)
     {
         int n, reqsize;
 		reqsize = 1024;
         char buf[reqsize];
-        // request
+        // request (читаем в буфер из сокета)
         n = recv(sock, buf, reqsize, 0);
         if (n <= 0) { p("serv_child err: recv"); return 1; };
         p("serv_child: recivied");
@@ -162,14 +167,14 @@ namespace zex
         // create response
 		std::string resp_out = "";	//- save scope
         struct zex_response_t zr = resp_get_response(resp_out, params);
-        // response
+        // response (пишем в буфер)
         send(sock, zr.str, zr.size, 0);
         p("serv_child: sended");
         close(sock);	//!
         return 0;
     }
 
-    // parse request
+    // разбор строк запроса
     struct zex_serv_params zex_serv_getparams(const char* buf)
     {
         struct zex_serv_params params;
@@ -185,7 +190,7 @@ namespace zex
 			{
 				params.method = pr->name;
 				params.url = pr->val;
-				parse_url_query(params.url, params.queries);
+				parse_url_query(params.url, params);
 			}
 			// headers (http://en.wikipedia.org/wiki/List_of_HTTP_header_fields)
 			else if (pr->name == "COOKIE")

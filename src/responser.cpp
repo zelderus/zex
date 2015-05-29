@@ -2,10 +2,13 @@
 #include "responser.h"
 #include "help.h"
 
+#include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+
 
 
 using namespace std;
@@ -14,10 +17,12 @@ namespace zex
 {
 	namespace responser
 	{
-		// check request
+		// непосредственно генерация ответа
 		struct zex_responser_head check_request ( std::string& out, const struct zex_serv_params& prms)
 		{
 			struct zex_responser_head head;
+
+			//sleep(10);
 			// TODO: working..
 			head.success = 1;	// 1=ok, 0=error
 			head.status = "200 OK";
@@ -31,7 +36,7 @@ namespace zex
 			return head;
 		}
 
-		// header
+		// на основе модели ответа - собирает заголовки в поток ответа
 		void get_header( std::string& out, const struct zex_responser_head& head, int content_size, const struct zex_serv_params& prms )
 		{
 			out += ("HTTP/1.0 " + head.status + "\n");
@@ -44,7 +49,7 @@ namespace zex
 		}
 	}
 
-
+	// на основе параметров запроса - строит заголовки и тело для ответа
     struct zex_response_t resp_get_response( std::string& outstr, struct zex_serv_params prms )
     {
         struct zex_response_t resp;
@@ -65,6 +70,7 @@ namespace zex
     }
 
 }
+
 
 
 

@@ -19,7 +19,7 @@ namespace zex
 	std::string strtoupper (const std::string& str);
 
 	std::vector<RequestParams> parse_http(const char* buf);
-	void parse_url_query(const std::string& url, std::vector<RequestParams*>& queries);
+	void parse_url_query(const std::string& url, struct zex_serv_params& prms);
 	void parse_request_cookie(const std::string& cookiestr, std::vector<RequestParams*>& cookies);
 
 
