@@ -25,22 +25,50 @@ namespace zex
     int zex_port = 3542;
     char zex_addr[] = "127.0.0.1";
 
+	int serv_child = 0;
+	int sock = 0;
+	int listener = 0;
+	int status = 0;
+
 
 	void
 	zex_onsignal( int signum )
 	{
-		pl("\nsignal:");
-		pd(signum);
+		if (serv_child)
+		{
+			//close(sock);
+		}
+		else
+		{
+			pl("\nsignal:");
+			pd(signum);
+
+			//close(listener);
+		}
 	}
 
+
+	void
+	zex_child_zombie( int num )
+	{
+		pid_t kidpid;
+		int stat;
+
+		while ((kidpid = waitpid(-1, &stat, WNOHANG)) > 0)
+		{
+			pl("child zombie terminating ");
+			pd(kidpid);
+		}
+	}
 
 
     // подключение и слушение адреса. основной цикл прослушки запросов
     int zex_serv(void)
     {
-        int sock, listener, status;
+        //int sock, listener, status;
         struct sockaddr_in addr;
         int pid;
+		struct sigaction sa;
 
         //p("serv: working..");
         listener = socket(AF_INET, SOCK_STREAM, 0);
@@ -68,14 +96,23 @@ namespace zex
 
         listen(listener, 1);
         p("---------------------------");
+		
+		//- signal interrupt
+		signal(SIGINT, zex_onsignal);
+		//- signal from child process to terminate
+		sigfillset(&sa.sa_mask);
+		sa.sa_handler = zex_child_zombie;
+		sa.sa_flags = 0;
+		sigaction(SIGCHLD, &sa, NULL);
 
-		//signal(SIGINT, zex_onsignal);
+		//p("..sig..");
 
 
         while(1)
         {
+			errno = 0;
             sock = accept(listener, 0, 0);
-            if (sock < 0) { p("serv err: accept"); return 3; }
+            if (sock < 0) { pl("serv err: accept -> "); p(strerror(errno)); return 3; }
             //p("serv: accept success");
 
 			//+ proccess
@@ -86,6 +123,7 @@ namespace zex
 
             if (pid == 0) /* client proccess  */
             {
+				serv_child = 1;
                 close(listener);
                 zex_serv_child(sock);
                 return ZEX_RET_FRMCLIENT;	//- exit in client proccess
@@ -94,8 +132,7 @@ namespace zex
             {
                 close(sock);
             }
-			// waiting child
-			wait(&status);
+			
         }
 
         return 0;
