@@ -9,7 +9,7 @@ using namespace zex;
 
 int main()
 {
-    pl("zex/");
+	pl("zex/");
 	pl(ZEX_VER);
 	p(" started");
 

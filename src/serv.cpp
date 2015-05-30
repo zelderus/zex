@@ -22,8 +22,8 @@ namespace zex
 {
 
 	// TODO: to config
-    int zex_port = 3542;
-    char zex_addr[] = "127.0.0.1";
+	int zex_port = 3542;
+	char zex_addr[] = "127.0.0.1";
 
 
 	static int serv_stopped = 0; 
@@ -32,8 +32,9 @@ namespace zex
 	int listener = 0;
 	int status = 0;
 
-
+	//
 	// пришло прерывание на выключение
+	//
 	void
 	zex_onsignal( int signum )
 	{
@@ -51,7 +52,9 @@ namespace zex
 		}
 	}
 
+	//
 	// дочерний прцесс завершился, обрабатывем его ответ, чтобы он уничтожился
+	//
 	void
 	zex_child_zombie( int num )
 	{
@@ -67,41 +70,42 @@ namespace zex
 
 
 	//
-    // подключение и слушение адреса. основной цикл прослушки запросов
+	// подключение и слушение адреса. основной цикл прослушки запросов
 	//
-    int zex_serv(void)
-    {
-        struct sockaddr_in addr;
-        int pid;
+	int 
+	zex_serv(void)
+	{
+		struct sockaddr_in addr;
+		int pid;
 		struct sigaction sa;
 
-        // сокет для прослушки порта
-        listener = socket(AF_INET, SOCK_STREAM, 0);
-        if (listener < 0)
-        {
-            p("serv err: socket");
-            return 1;
-        }
+		// сокет для прослушки порта
+		listener = socket(AF_INET, SOCK_STREAM, 0);
+		if (listener < 0)
+		{
+			p("serv err: socket");
+			return 1;
+		}
 		// подключаемся на адрес для прослушки
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(zex_port);
-        addr.sin_addr.s_addr = inet_addr(zex_addr);// htonl(INADDR_ANY);
-        if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) < 0)
-        {
-            p("serv err: bind");
-            p(strerror(errno));
-            return 2;
-        }
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(zex_port);
+		addr.sin_addr.s_addr = inet_addr(zex_addr); // htonl(INADDR_ANY);
+		if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+		{
+			p("serv err: bind");
+			p(strerror(errno));
+			return 2;
+		}
 
-        // console
-        pl("address: ");
-        pl(zex_addr);
-        pl(":");
-        pd(zex_port);
+		// console
+		pl("address: ");
+		pl(zex_addr);
+		pl(":");
+		pd(zex_port);
 
-        listen(listener, 1);
-        p("---------------------------");
-		
+		listen(listener, 1);
+		p("---------------------------");
+
 		//- слушаем сигналы из вне (остановка приложения)
 		signal(SIGINT, zex_onsignal);
 		//- ждем сигнала от дочерних прцессов (чтобы обработать их и завершить)
@@ -111,13 +115,13 @@ namespace zex
 		sigaction(SIGCHLD, &sa, NULL);
 
 		// вечный цикл - слушаем соединения
-        while(1)
-        {
+		while(1)
+		{
 			if (serv_stopped) break;	// обаботали сигнал на остановку приложения
 			// получаем входящий запрос
 			errno = 0;
-            sock = accept(listener, 0, 0);
-            if (sock < 0) 
+			sock = accept(listener, 0, 0);
+			if (sock < 0)
 			{
 				// было прерывание, завершился дочерний прцесс
 				if (errno == EINTR) /* The system call was interrupted by a signal */
@@ -131,54 +135,58 @@ namespace zex
 			}
 			//+ создание нового процесса с полной обработкой запроса
 			//- способ с новым процессом
-			//- альтернатива этому: применение select
-            pid = fork();
-            if (pid < 0) { p("serv err: fork"); return 4; }
+			//- альтернатива этому: применение select+poll или потоков
+			pid = fork();
+			if (pid < 0) { p("serv err: fork"); return 4; }
 
-            if (pid == 0) /* client proccess  */
-            {
+			if (pid == 0) /* client proccess  */
+			{
 				serv_child = 1;
-                close(listener);			//- у нового процесса продублировались дескрипторы
-                zex_serv_child(sock);		//- основная функция обработки
-                return ZEX_RET_FRMCLIENT;	//- exit in client proccess
-            }
-            else
-            {
-                close(sock);
-            }
-        }
-        return 0;
-    }
+				close(listener);		//- у нового процесса продублировались дескрипторы
+				zex_serv_child(sock);		//- основная функция обработки
+				return ZEX_RET_FRMCLIENT;	//- exit in client proccess
+			}
+			else
+			{
+				close(sock);
+			}
+		}
+		return 0;
+	}
 
 	//
-    // отдельный процесс. чтение запроса и ответ
+	// отдельный процесс. чтение запроса и ответ
 	//
-    int zex_serv_child(int sock)
-    {
-        int n, reqsize;
+	int 
+	zex_serv_child(int sock)
+	{
+		int n, reqsize;
 		reqsize = 1024;
-        char buf[reqsize];
-        // request (читаем в буфер из сокета)
-        n = recv(sock, buf, reqsize, 0);
-        if (n <= 0) { p("serv_child err: recv"); return 1; };
-        p("serv_child: recivied");
-        // params
-        struct zex_serv_params params = zex_serv_getparams(buf);
-        // create response
+		char buf[reqsize];
+		// request (читаем в буфер из сокета)
+		n = recv(sock, buf, reqsize, 0);
+		if (n <= 0) { p("serv_child err: recv"); return 1; };
+		p("serv_child: recivied");
+		// params
+		ZexParams params = zex_serv_getparams(buf);
+		// create response
 		std::string resp_out = "";	//- save scope
-        struct zex_response_t zr = resp_get_response(resp_out, params);
-        // response (пишем в буфер)
-        send(sock, zr.str, zr.size, 0);
-        p("serv_child: sended");
-        close(sock);	//!
-        return 0;
-    }
+		ZexResp zr = resp_get_response(resp_out, params);
+		// response (пишем в буфер)
+		send(sock, zr.str, zr.size, 0);
+		p("serv_child: sended");
+		close(sock);	//!
+		return 0;
+	}
 
-    // разбор строк запроса
-    struct zex_serv_params zex_serv_getparams(const char* buf)
-    {
-        struct zex_serv_params params;
-        // parse request from buf
+	//
+	// разбор строк запроса
+	//
+	ZexParams
+	zex_serv_getparams(const char* buf)
+	{
+		ZexParams params;
+		// parse request from buf
 		std::vector<RequestParams> elms = parse_http(buf);
 		// to model
 		for (unsigned i=0; i<elms.size(); i++)
@@ -200,8 +208,8 @@ namespace zex
 			// other main params..
 
 		}
-        return params;
-    }
+		return params;
+	}
 
 
 }

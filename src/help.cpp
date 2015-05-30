@@ -44,7 +44,7 @@ namespace zex
 		std::string out;
 		std::locale loc;
 		for (std::string::size_type i=0; i<str.length(); ++i)
-			out += std::toupper(str[i],loc);
+		out += std::toupper(str[i],loc);
 
 		return out;
 	}
@@ -71,7 +71,7 @@ namespace zex
     {
         strcat(dest, src);
         return;
-/*
+		/*
         size_t len1 = strlen(dest);
         size_t len2 = strlen(src);
 
@@ -90,8 +90,8 @@ namespace zex
         //p(dest);
         */
 
-    //p(dest);
-    //p("--------");
+    	//p(dest);
+    	//p("--------");
     }
 
 
