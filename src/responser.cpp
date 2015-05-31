@@ -32,7 +32,19 @@ namespace zex
 			// content
 			if (head.success)
 			{
-				out = "<html><div>reeeesp yeaaaahhhh</div><form action='/form'><input type='text' name='inp1' value='vvvvv1'/><input type='submit' value='go' /></form></html>";
+				out = "<html><head><title>zex</title>";
+				out += "<style>a { padding:8px; }</style>";
+				out += "</head>";
+				out += "<body>";
+
+				if (prms.url == "/docs")
+					out += "<div style='padding:20px;'><ul><li>111</li><li>222</li><li>333</li></ul><a href='/'>home</a><a href='about'>about</a></div>";
+				else if (prms.url == "/about")
+					out += "<div style='padding:20px;'><p>this is... aaaaa...</p><p>yeahh.. this is the ZEX server</p><a href='/'>home</a><a href='docs'>docs</a></div>";
+				else
+					out += "<div>reeeesp yeaaaahhhh</div><a href='docs'>docs</a><form action='/form'><input type='text' name='inp1' value='vvvvv1'/><input type='submit' value='go' /></form>";
+			
+				out += "</body></html>";
 			}
 			return head;
 		}
