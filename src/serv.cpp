@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <arpa/inet.h>
@@ -18,12 +19,15 @@
 
 
 
+
 namespace zex
 {
 
 	// TODO: to config
 	int zex_port = 3542;
 	char zex_addr[] = "127.0.0.1";
+	char zesap_socket[] = "/home/zelder/cc/zesap/tmp/zesap.sock";
+
 
 
 	static int serv_stopped = 0; 
@@ -154,6 +158,81 @@ namespace zex
 		return 0;
 	}
 
+
+
+	//
+	//	помощник. отпраква сообщения и закрытие сокета
+	//
+	void
+	zex_send(const int sock, const std::string& str)
+	{
+		send(sock, &str[0], str.size(), 0);
+		close(sock);
+	}
+
+	//
+	//	обращение к ZEBLOCKER
+	//	возвращает:
+	//		0 - есть доступ
+	//		1 - нет доступа
+	//
+	int
+	zex_blocker(const std::string addr)
+	{
+		// TODO: через трубу запрашиваем разрешение на текущего клиента (IP) у демона zeblocker
+		
+
+		return 0;
+	}
+
+
+	//
+	//	запрос к ZESAP и ответ от него
+	//	присоединяемся по UNIX-сокету к zesap, передаем поток запроса и получаем ответ
+	//	return: 
+	//		0 	- OK
+	//		>0	- error
+	//
+	int
+	zex_zesap_do(const int sock, const std::string& reqstr, std::string& resp_out)
+	{
+		int ressize = 2048;
+		char bufcli[ressize];
+
+		int unisock;
+		struct sockaddr_un addr;
+		unisock = socket(AF_UNIX, SOCK_STREAM, 0);
+		errno = 0;
+		if(unisock < 0)
+		{
+			pl("serv_child err: socket -> ");
+			p(strerror(errno)); 
+			resp_getresponse_500(resp_out, "502 Bad Gateway", "ZEX don't access to ZESAP");
+			zex_send(sock, resp_out);
+		    return 2;
+		}
+		addr.sun_family = AF_UNIX;
+		strncpy(addr.sun_path, zesap_socket, sizeof(addr.sun_path)-1);
+		errno = 0;
+		if (connect(unisock, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+		{
+			pl("serv_child err: connect -> ");
+			p(strerror(errno)); 
+			resp_getresponse_500(resp_out, "502 Bad Gateway", "ZEX don't access to ZESAP connecting");
+			zex_send(sock, resp_out);
+			close(unisock);
+			return 3;
+		}
+		send(unisock, &reqstr[0], reqstr.size(), 0);
+		recv(unisock, bufcli, ressize, 0);
+		resp_out = std::string(bufcli);
+		close(unisock);
+
+		return 0;	// 0 - OK
+	}
+
+
+
 	//
 	// отдельный процесс. чтение запроса и ответ
 	//
@@ -166,26 +245,32 @@ namespace zex
 		// request (читаем в буфер из сокета)
 		n = recv(sock, buf, reqsize, 0);
 		if (n <= 0) { p("serv_child err: recv"); return 1; };
+		std::string reqstr = std::string(buf);
 		p("serv_child: recivied");
 		// ответ
 		std::string resp_out = "";
-
-		// TODO: через трубу запрашиваем разрешение на текущего клиента (IP) у демона zeblocker
-
-		
-		// TODO: присоединяемся по UNIX-сокету к zesap, передаем поток запроса и получаем ответ
-		
-
-		std::string errstr = "ZEX in progress, not implemented yet:<ul><li>1. talk to zeblocker service by Tube, to access current IP;</li><li>2. connect to zesap by UNIX-socket;</li><li>3. send and recieve message;</li></ul>";
-		resp_getresponse_500(resp_out, "501 Not Implemented", errstr);
-
-
+		//+ 1. zeblocker
+		std::string client_addr = "";
+		int blocker = zex_blocker(client_addr);
+		if (blocker)
+		{
+			resp_getresponse_500(resp_out, "403 Forbidden", "stop it");
+			zex_send(sock, resp_out);
+		    return 1;
+		}
+		//+ 2. zesap
+		int work = zex_zesap_do(sock, reqstr, resp_out);
+		if (work > 0)
+		{
+			close(sock);
+			return work;
+		}
 		// response (пишем в буфер)
-		send(sock, &resp_out[0], resp_out.size(), 0);
+		zex_send(sock, resp_out);
 		p("serv_child: sended");
-		close(sock);	//!
 		return 0;
 	}
+
 
 	
 
