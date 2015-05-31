@@ -124,7 +124,8 @@ namespace zex
 			if (serv_stopped) break;	// обаботали сигнал на остановку приложения
 			// получаем входящий запрос
 			errno = 0;
-			sock = accept(listener, 0, 0);
+			std::string client_addr = "";
+			sock = accept(listener, 0, 0);	// TODO: получить IP клиента
 			if (sock < 0)
 			{
 				// было прерывание, завершился дочерний прцесс
@@ -146,9 +147,9 @@ namespace zex
 			if (pid == 0) /* client proccess  */
 			{
 				serv_child = 1;
-				close(listener);			//- у нового процесса продублировались дескрипторы
-				zex_serv_child(sock);		//- основная функция обработки
-				return ZEX_RET_FRMCLIENT;	//- exit in client proccess
+				close(listener);					//- у нового процесса продублировались дескрипторы
+				zex_serv_child(sock, client_addr);	//- основная функция обработки
+				return ZEX_RET_FRMCLIENT;			//- exit in client proccess
 			}
 			else
 			{
@@ -169,6 +170,48 @@ namespace zex
 		send(sock, &str[0], str.size(), 0);
 		close(sock);
 	}
+
+
+
+	//
+	// отдельный процесс. чтение запроса и ответ
+	//
+	int 
+	zex_serv_child(int sock, std::string client_addr)
+	{
+		int n, reqsize;
+		reqsize = 1024;
+		char buf[reqsize];
+		// request (читаем в буфер из сокета)
+		n = recv(sock, buf, reqsize, 0);
+		if (n <= 0) { p("serv_child err: recv"); return 1; };
+		std::string reqstr = std::string(buf);
+		p("serv_child: recivied");
+		// ответ
+		std::string resp_out = "";
+		//+ 1. zeblocker
+		int blocker = zex_blocker(client_addr);
+		if (blocker)
+		{
+			resp_getresponse_500(resp_out, "403 Forbidden", "stop it");
+			zex_send(sock, resp_out);
+			return 1;
+		}
+		//+ 2. zesap
+		int work = zex_zesap_do(sock, reqstr, resp_out);
+		if (work > 0)
+		{
+			close(sock);
+			return work;
+		}
+		// response (пишем в буфер)
+		zex_send(sock, resp_out);
+		p("serv_child: sended");
+		return 0;
+	}
+
+
+
 
 	//
 	//	обращение к ZEBLOCKER
@@ -209,7 +252,7 @@ namespace zex
 			p(strerror(errno)); 
 			resp_getresponse_500(resp_out, "502 Bad Gateway", "ZEX don't access to ZESAP");
 			zex_send(sock, resp_out);
-		    return 2;
+			return 2;
 		}
 		addr.sun_family = AF_UNIX;
 		strncpy(addr.sun_path, zesap_socket, sizeof(addr.sun_path)-1);
@@ -230,47 +273,6 @@ namespace zex
 
 		return 0;	// 0 - OK
 	}
-
-
-
-	//
-	// отдельный процесс. чтение запроса и ответ
-	//
-	int 
-	zex_serv_child(int sock)
-	{
-		int n, reqsize;
-		reqsize = 1024;
-		char buf[reqsize];
-		// request (читаем в буфер из сокета)
-		n = recv(sock, buf, reqsize, 0);
-		if (n <= 0) { p("serv_child err: recv"); return 1; };
-		std::string reqstr = std::string(buf);
-		p("serv_child: recivied");
-		// ответ
-		std::string resp_out = "";
-		//+ 1. zeblocker
-		std::string client_addr = "";
-		int blocker = zex_blocker(client_addr);
-		if (blocker)
-		{
-			resp_getresponse_500(resp_out, "403 Forbidden", "stop it");
-			zex_send(sock, resp_out);
-		    return 1;
-		}
-		//+ 2. zesap
-		int work = zex_zesap_do(sock, reqstr, resp_out);
-		if (work > 0)
-		{
-			close(sock);
-			return work;
-		}
-		// response (пишем в буфер)
-		zex_send(sock, resp_out);
-		p("serv_child: sended");
-		return 0;
-	}
-
 
 	
 
