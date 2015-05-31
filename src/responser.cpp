@@ -17,75 +17,38 @@ namespace zex
 {
 	namespace responser
 	{
-		//
-		// непосредственно генерация ответа
-		//
-		ZexRespHead 
-		check_request ( std::string& out, const ZexParams& prms)
-		{
-			ZexRespHead head;
-			// TODO: working..
-			head.success = 1;	// 1=ok, 0=error
-			head.status = "200 OK";
-			head.content_type = "text/html;charset=utf-8";
-			// TODO: set cookies, etc..
-			// content
-			if (head.success)
-			{
-				out = "<html><head><title>zex</title>";
-				out += "<style>a { padding:8px; }</style>";
-				out += "</head>";
-				out += "<body>";
-
-				if (prms.url == "/docs")
-					out += "<div style='padding:20px;'><ul><li>111</li><li>222</li><li>333</li></ul><a href='/'>home</a><a href='about'>about</a></div>";
-				else if (prms.url == "/about")
-					out += "<div style='padding:20px;'><p>this is... aaaaa...</p><p>yeahh.. this is the ZEX server</p><a href='/'>home</a><a href='docs'>docs</a></div>";
-				else
-					out += "<div>reeeesp yeaaaahhhh</div><a href='docs'>docs</a><form action='/form'><input type='text' name='inp1' value='vvvvv1'/><input type='submit' value='go' /></form>";
-			
-				out += "</body></html>";
-			}
-			return head;
-		}
-
-		//
-		// на основе модели ответа - собирает заголовки в поток ответа
-		//
 		void 
-		get_header( std::string& out, const ZexRespHead& head, int content_size, const ZexParams& prms )
+		get_header( std::string& out, const std::string status, int content_size )
 		{
-			out += ("HTTP/1.0 " + head.status + "\n");
+			out += ("HTTP/1.0 " + status + "\n");
 			out += ("Server: zex/" + string(ZEX_VER) + "\n");
-			out += ("Content-Type: " + head.content_type + "\n");
-			out += ("Status: " + head.status + "\n");
-			// TODO: other headers from head
+			out += ("Content-Type: text/html;charset=utf-8\n");
+			out += ("Status: " + status + "\n");
 			out += ("Content-Length: " + inttostr(content_size) + "\n");
 			out += "\n";
 		}
 	}
 
 	//
-	// на основе параметров запроса - строит заголовки и тело для ответа
+	// ответ ошибка сервера
+	// статусы http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
 	//
-	ZexResp
-	resp_get_response( std::string& outstr, ZexParams prms )
+	void
+	resp_getresponse_500( std::string& outstr, const std::string status, const std::string errmsg )
 	{
-		ZexResp resp;
 		string& response = outstr;	
 		// request content
-		string resp_content = "";
-		ZexRespHead head = responser::check_request(resp_content, prms);
+		string resp_content = "<html><head><title>zex</title></head><body>";
+		resp_content += "<div style='margin:0 auto; padding: 20px;padding: 10px !important;  border: 1px solid #732626;  background-color: #F8ECEC;  color: #732626;  margin: 0 !important;  -webkit-border-radius: 8px;  -moz-border-radius: 8px;  border-radius: 8px;'>";
+		resp_content += ("<h1 style='text-align:center;'>" +status+ "</h1>");
+		resp_content += ("<div style='text-align:center; font-size:10px;'>" +("(zex/"+string(ZEX_VER)+")")+ "</div>");
+		resp_content += ("<div style='text-align:left;'>" +errmsg+ "</div>");
+		resp_content += "</div></body></html>";
 		int content_size = resp_content.size();
 		// header
-		responser::get_header(response, head, content_size, prms);
+		responser::get_header(response, status, content_size);
 		response += resp_content;
 		response += "\r\r";
-		// send
-		resp.num = 83;
-		resp.str = &response[0];
-		resp.size = response.size();
-		return resp;
 	}
 
 }

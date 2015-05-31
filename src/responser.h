@@ -3,6 +3,6 @@
 namespace zex
 {
 
-    struct zex_response_t resp_get_response( std::string& outstr, struct zex_serv_params prms );
+    void resp_getresponse_500( std::string& outstr, const std::string status, const std::string errmsg );
 
 }

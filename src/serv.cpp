@@ -142,7 +142,7 @@ namespace zex
 			if (pid == 0) /* client proccess  */
 			{
 				serv_child = 1;
-				close(listener);		//- у нового процесса продублировались дескрипторы
+				close(listener);			//- у нового процесса продублировались дескрипторы
 				zex_serv_child(sock);		//- основная функция обработки
 				return ZEX_RET_FRMCLIENT;	//- exit in client proccess
 			}
@@ -167,49 +167,26 @@ namespace zex
 		n = recv(sock, buf, reqsize, 0);
 		if (n <= 0) { p("serv_child err: recv"); return 1; };
 		p("serv_child: recivied");
-		// params
-		ZexParams params = zex_serv_getparams(buf);
-		// create response
-		std::string resp_out = "";	//- save scope
-		ZexResp zr = resp_get_response(resp_out, params);
+		// ответ
+		std::string resp_out = "";
+
+		// TODO: через трубу запрашиваем разрешение на текущего клиента (IP) у демона zeblocker
+
+		
+		// TODO: присоединяемся по UNIX-сокету к zesap, передаем поток запроса и получаем ответ
+		
+
+		std::string errstr = "ZEX in progress, not implemented yet:<ul><li>1. talk to zeblocker service by Tube, to access current IP;</li><li>2. connect to zesap by UNIX-socket;</li><li>3. send and recieve message;</li></ul>";
+		resp_getresponse_500(resp_out, "501 Not Implemented", errstr);
+
+
 		// response (пишем в буфер)
-		send(sock, zr.str, zr.size, 0);
+		send(sock, &resp_out[0], resp_out.size(), 0);
 		p("serv_child: sended");
 		close(sock);	//!
 		return 0;
 	}
 
-	//
-	// разбор строк запроса
-	//
-	ZexParams
-	zex_serv_getparams(const char* buf)
-	{
-		ZexParams params;
-		// parse request from buf
-		std::vector<RequestParams> elms = parse_http(buf);
-		// to model
-		for (unsigned i=0; i<elms.size(); i++)
-		{
-			RequestParams* pr = &elms.at(i);
-			params.params.push_back(pr);
-			// first line
-			if (pr->num == 0)
-			{
-				params.method = pr->name;
-				params.url = pr->val;
-				parse_url_query(params.url, params);
-			}
-			// headers (http://en.wikipedia.org/wiki/List_of_HTTP_header_fields)
-			else if (pr->name == "COOKIE")
-			{
-				parse_request_cookie(pr->val, params.cookies);
-			}
-			// other main params..
-
-		}
-		return params;
-	}
-
+	
 
 }

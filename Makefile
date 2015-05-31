@@ -17,7 +17,6 @@ types.o: src/types.cpp
 responser.o: src/responser.cpp
 	g++ -c src/responser.cpp -o bin/responser.o
 
-
 serv.o: src/serv.cpp
 	g++ -c src/serv.cpp -o bin/serv.o
 
