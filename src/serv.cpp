@@ -10,6 +10,8 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <sys/epoll.h>
+#include <fcntl.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -18,15 +20,16 @@
 #include <sys/wait.h>
 
 
-
+#define EPOLL_QUEUE_LEN 	1
+#define MAX_EVENTS 			64
 
 namespace zex
 {
 
 	// TODO: to config
-	int zex_port = 3542;
-	char zex_addr[] = "127.0.0.1";
-	char zesap_socket[] = "/home/zelder/cc/zesap/tmp/zesap.sock";
+	int zex_port = ZEX_SRV_PORT;
+	char zex_addr[] = ZEX_SRV_ADDR;
+	char zesap_socket[] = ZEX_SRV_SOCK;
 
 
 
@@ -75,9 +78,185 @@ namespace zex
 
 	//
 	// подключение и слушение адреса. основной цикл прослушки запросов
+	//	Мультиплексирование ввода-вывода
 	//
 	int 
-	zex_serv(void)
+	zex_serv_do_epoll(void)
+	{
+		struct sockaddr_in addr;
+		int pid;
+		struct sigaction sa;
+
+		// сокет для прослушки порта
+		listener = socket(AF_INET, SOCK_STREAM, 0);
+		if (listener < 0)
+		{
+			p("serv err: socket");
+			return 1;
+		}
+
+ 		// Неблокирующий режим (EPOLL)
+ 		setnonblocking(listener);
+
+		// подключаемся на адрес для прослушки
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(zex_port);
+		addr.sin_addr.s_addr = inet_addr(zex_addr); // htonl(INADDR_ANY);
+		if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+		{
+			p("serv err: bind");
+			p(strerror(errno));
+			return 2;
+		}
+
+		// console
+		pl("address: ");
+		pl(zex_addr);
+		pl(":");
+		pd(zex_port);
+
+		//+ начинаем слушать запросы
+		listen(listener, 1);
+		p("---------------------------");
+
+		//- слушаем сигналы из вне (остановка приложения)
+		signal(SIGINT, zex_onsignal);
+		//- ждем сигнала от дочерних прцессов (чтобы обработать их и завершить)
+		sigfillset(&sa.sa_mask);
+		sa.sa_handler = zex_child_zombie;
+		sa.sa_flags = 0;
+		sigaction(SIGCHLD, &sa, NULL);
+
+
+		//!+ EPOLL	-------------------------->
+		int epfd, fd, ret;
+		struct epoll_event event;
+		//- create epoll
+		epfd = epoll_create1(EPOLL_CLOEXEC);
+		if (epfd < 0)
+		{
+			p("epoll error");
+			return 5;
+		}
+		//- event epoll
+		event.data.fd = listener;
+		event.events = EPOLLIN | EPOLLPRI | EPOLLET; //EPOLLIN | EPOLLOUT;
+		ret = epoll_ctl(epfd, EPOLL_CTL_ADD, listener, &event);
+		if (ret)
+		{
+			p("epoll_ctl");
+			return 6;
+		}
+		//struct epoll_event *events;
+		struct epoll_event events[MAX_EVENTS];
+		struct epoll_event connev;
+		int nr_events, i;
+		int events_cout = 1;
+		// <------------------------ end of EPOLL
+
+
+		socklen_t client;
+		struct sockaddr_in cliaddr;
+
+		// вечный цикл - слушаем соединения
+		while(1)
+		{
+			if (serv_stopped) break;	// обаботали сигнал на остановку приложения
+			
+			/*
+			*	===
+			*	===== Мультиплексирование ввода-вывода =====
+			*	===
+			*
+			*/
+			std::string client_addr = "";
+			// Блокирование до готовности одно или нескольких дескрипторов
+  			int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
+			for (int n = 0; n < nfds; ++n)
+  			{
+				// Готов слушающий дескриптор
+				if (events[n].data.fd == listener)
+				{
+					client = sizeof(cliaddr);
+					int connfd = accept(listener, (struct sockaddr*) &cliaddr, &client);
+					if (connfd < 0)
+					{
+						p("accept err");
+						continue;
+					}
+					// Недостаточно места в массиве ожидания
+					if (events_cout == MAX_EVENTS-1)
+					{
+						p("err: MAX_EVENTS");
+						close(connfd);
+						continue;
+					}
+					// Добавление клиентского дескриптора в массив ожидания
+					setnonblocking(connfd);
+
+					connev.data.fd = connfd;
+					connev.events = EPOLLIN;// | EPOLLOUT | EPOLLET | EPOLLRDHUP;
+					if (!epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &connev) < 0)
+					{
+						p("Epoll fd add");
+						close(connfd);
+						continue;
+					}
+					++events_cout;
+				}
+				// Готов клиентский дескриптор
+				else
+				{
+					// Выполням работу с дескриптором
+					int fd = events[n].data.fd;
+
+					if (events[n].events & EPOLLIN)
+					{	
+						p("child reading..");
+						zex_servp_child_read(fd, client_addr);
+						connev.events = EPOLLOUT;
+						epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &connev);
+
+						continue;	// не закрывает дескриптор
+					}
+					if (events[n].events & EPOLLOUT)
+					{
+						p("child writing..");
+						setnonblocking(fd);
+						zex_servp_child_write(fd, client_addr);
+					}
+					if (events[n].events & EPOLLRDHUP)
+					{
+						pl("serv procc err, fd=");
+						pd(fd);
+					}
+
+					// В даннoм примере дескриптор просто закрывается и удаляется из массива ожидания.
+					// В зависимости от логики работы можно не удалять дескриптор и подождать следующую порцию данных
+					epoll_ctl(epfd, EPOLL_CTL_DEL, fd, &connev);
+					--events_cout;
+					close(fd);
+				}
+			}
+
+		}
+
+		//+ close
+		close(epfd);
+		close(listener);
+
+		return 0;
+	}
+
+
+
+
+	//
+	// подключение и слушение адреса. основной цикл прослушки запросов
+	//	Один процесс/поток на клиента
+	//
+	int 
+	zex_serv_do_procs(void)
 	{
 		struct sockaddr_in addr;
 		int pid;
@@ -107,6 +286,7 @@ namespace zex
 		pl(":");
 		pd(zex_port);
 
+		//+ начинаем слушать запросы
 		listen(listener, 1);
 		p("---------------------------");
 
@@ -118,18 +298,30 @@ namespace zex
 		sa.sa_flags = 0;
 		sigaction(SIGCHLD, &sa, NULL);
 
+
+		socklen_t client;
+		struct sockaddr_in cliaddr;
+
 		// вечный цикл - слушаем соединения
 		while(1)
 		{
 			if (serv_stopped) break;	// обаботали сигнал на остановку приложения
+
+
+			/*
+			*	===
+			*	===== Один процесс/поток на клиента =====
+			*	===
+			*
+			*/
 			// получаем входящий запрос
 			errno = 0;
-			std::string client_addr = "";
-			sock = accept(listener, 0, 0);	// TODO: получить IP клиента
+			std::string client_addr = "";	// TODO: получить IP клиента
+			sock = accept(listener, (struct sockaddr*) &cliaddr, &client);
 			if (sock < 0)
 			{
-				// было прерывание, завершился дочерний прцесс
-				if (errno == EINTR) /* The system call was interrupted by a signal */
+				// было прерывание, завершился дочерний процесс
+				if (errno == EINTR)
 				{
 					// dont worry, just killed a child
 					continue;
@@ -143,8 +335,7 @@ namespace zex
 			//- альтернатива этому: применение select+poll или потоков
 			pid = fork();
 			if (pid < 0) { p("serv err: fork"); return 4; }
-
-			if (pid == 0) /* client proccess  */
+			if (pid == 0) // client proccess
 			{
 				serv_child = 1;
 				close(listener);					//- у нового процесса продублировались дескрипторы
@@ -156,6 +347,10 @@ namespace zex
 				close(sock);
 			}
 		}
+
+		//+ close
+		//close(listener);
+
 		return 0;
 	}
 
@@ -170,6 +365,69 @@ namespace zex
 		send(sock, &str[0], str.size(), 0);
 		close(sock);
 	}
+	void
+	zex_send2(const int sock, const std::string& str)
+	{
+		send(sock, &str[0], str.size(), 0);
+	}
+
+
+
+
+	// читаем запрос
+	int
+	zex_servp_child_read(int sock, std::string client_addr)
+	{
+		int n, reqsize;
+		reqsize = 1024;
+		char buf[reqsize];
+		// request (читаем в буфер из сокета)
+		n = recv(sock, buf, reqsize, 0);
+		if (n <= 0) { p("serv_child err: recv"); return 1; };
+		std::string reqstr = std::string(buf);
+		p("serv_child: recivied");
+		// TODO: save reqstr
+
+		
+		return 0;
+	}
+	
+	// пишем ответ
+	int
+	zex_servp_child_write(int sock, std::string client_addr)
+	{
+		// TODO: load reqstr
+		std::string reqstr = "";
+
+		// ответ
+		std::string resp_out = "";
+		//+ 1. zeblocker
+		int blocker = zex_blocker(client_addr);
+		if (blocker)
+		{
+			resp_getresponse_500(resp_out, "403 Forbidden", "stop it");
+			zex_send2(sock, resp_out);
+			return 1;
+		}
+		//+ 2. zesap
+		int work = zex_zesap_do(sock, reqstr, resp_out);
+		if (work > 0)
+		{
+			//close(sock);
+			return work;
+		}
+		// response (пишем в буфер)
+		zex_send2(sock, resp_out);
+		p("serv_child: sended");
+		return 0;
+	}
+
+
+
+
+
+
+
 
 
 
@@ -272,6 +530,27 @@ namespace zex
 		close(unisock);
 
 		return 0;	// 0 - OK
+	}
+
+
+
+	// Неблокируемый поток
+	int setnonblocking(int sock)
+	{
+		int opts;
+		opts = fcntl(sock,F_GETFL);
+		if (opts < 0)
+		{
+			p("fcntl(F_GETFL)");
+			return -1;
+		}
+		opts = (opts | O_NONBLOCK);
+		if (fcntl(sock,F_SETFL,opts) < 0)
+		{
+			p("fcntl(F_SETFL)");
+			return -1;
+		}
+		return 0;
 	}
 
 	

@@ -14,7 +14,10 @@ int main()
 	p(" started");
 
 
-	int zs = zex_serv();
+	int zs = 0;
+	zs = zex_serv_do_procs();		/* Один процесс/поток на клиента */
+	//zs = zex_serv_do_epoll();		/* Мультиплексирование ввода-вывода */
+
 	if (zs > 0)
 	{
 		p("zex: err");
