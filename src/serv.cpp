@@ -30,7 +30,7 @@ namespace zex
 	int zex_port = ZEX_SRV_PORT;
 	char zex_addr[] = ZEX_SRV_ADDR;
 	char zesap_socket[] = ZEX_SRV_SOCK;
-
+	int responseSize = 1048576; //262144; //65536;
 
 
 	static int serv_stopped = 0; 
@@ -497,7 +497,7 @@ namespace zex
 	int
 	zex_zesap_do(const int sock, const std::string& reqstr, std::string& resp_out)
 	{
-		int ressize = 2048;
+		int ressize = responseSize; //16384; //2048;
 		char bufcli[ressize];
 
 		int unisock;
